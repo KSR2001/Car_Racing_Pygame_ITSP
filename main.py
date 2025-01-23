@@ -263,4 +263,20 @@ while running_game:
                 break
             if event.type == pygame.KEYDOWN:
                 process_game.starting_level()
-
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running_game = False
+            break
+    moving_cars(player_car_1, player_car_2)
+    cars_collision(player_car_1, player_car_2, process_game)
+    if process_game.game_finish():
+        winner_text = process_game.get_winner()
+        draw_instructions(WIN, SMALL_FONT, winner_text)
+        winner_text_height = SMALL_FONT.size(winner_text)[1]
+        draw_trophy(WIN, trophy, HEIGHT / 2 - winner_text_height / 2)
+        pygame.display.update()
+        pygame.time.wait(5000)
+        process_game.game_reset()
+        player_car_1.reset()
+        player_car_2.reset()
+pygame.quit()
