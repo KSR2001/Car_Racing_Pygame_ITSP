@@ -51,6 +51,3 @@ def draw_instructions(win, font, instructions_text, background_color=(0, 0, 0, 1
         win.blit(render, (win.get_width() / 2 - render.get_width() / 2, start_y))
         start_y += render.get_height()
 
-
-
-
