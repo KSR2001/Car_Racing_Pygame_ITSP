@@ -51,3 +51,186 @@ def draw_instructions(win, font, instructions_text, background_color=(0, 0, 0, 1
         win.blit(render, (win.get_width() / 2 - render.get_width() / 2, start_y))
         start_y += render.get_height()
 
+def rotating_img(pywin, img, pos, angle):
+    pywin.blit(
+        pygame.transform.rotate(img, angle),
+        pygame.transform.rotate(img, angle).get_rect(
+            center=img.get_rect(topleft=pos).center
+        ).topleft
+    )
+
+
+class Main_Car:
+    IMG = None
+    start_position = (0,0)
+
+    def __init__(self, car_speed, car_rotation_speed):
+        self.car_rotation_speed = car_rotation_speed
+        self.acc = 0.1
+        self.img = self.IMG
+        self.angle = 0
+        self.hor, self.ver = self.start_position
+        self.car_speed = car_speed
+        self.speed = 0
+
+    def draw(self, win):
+        rotating_img(win, self.img, (self.hor, self.ver), self.angle)
+
+    def forward_moving(self):
+        self.speed = min(self.speed + self.acc, self.car_speed)
+        self.move()
+
+    def backward_moving(self):
+        self.speed = max(self.speed - self.acc, -self.car_speed/2)
+        self.move()
+
+    def speed_reduction(self):
+        self.speed = max(self.speed - self.acc / 2, 0)
+        self.move()
+
+    def rotating_car(self, move_left=False, move_right=False):
+        actions = {
+            (True, False): lambda: self.angle + self.car_rotation_speed,
+            (False, True): lambda: self.angle - self.car_rotation_speed,
+        }
+        self.angle = actions.get((move_left, move_right), lambda: self.angle)()
+
+    def move(self):
+        radians = math.radians(self.angle)
+        vertical, horizontal = math.cos(radians) * self.speed, math.sin(radians) * self.speed
+        self.ver -= vertical
+        self.hor -= horizontal
+
+    def bounce_back(self):
+        self.speed = -self.speed
+        self.move()
+
+    def collide(self, mask, x=0, y=0):
+        car_collision_mask = pygame.mask.from_surface(self.img)
+        collision_offset = (int(self.hor - x), int(self.ver - y))
+        point_of_intersection = mask.overlap(car_collision_mask, collision_offset)
+        return point_of_intersection
+
+    def reset(self):
+        self.hor, self.ver = self.start_position
+        self.angle = 0
+        self.speed = 0
+
+class Car1(Main_Car):
+    IMG = RED_CAR
+    start_position = (20, 445)
+
+class Car2(Main_Car):
+    IMG = YELLOW_CAR
+    start_position = (60, 450)
+
+def draw(win, game_images, player_car_1, player_car_2, process_game):
+    for image, position in game_images:
+        win.blit(image, position)
+    txt_level = SMALL_FONT.render(f"Level {process_game.level}", 1, (255, 255, 255))
+    win.blit(txt_level, (30, HEIGHT - txt_level.get_height() - 70))
+    player_car_1.draw(win)
+    player_car_2.draw(win)
+    pygame.display.update()
+
+
+def moving_cars(player_car_1, player_car_2):
+    storing_keys = pygame.key.get_pressed()
+    if storing_keys[pygame.K_q]:
+        sound.play()
+    if storing_keys[pygame.K_e]:
+        sound.stop()
+    if storing_keys[pygame.K_n]:
+        pygame.quit()
+    if storing_keys[pygame.K_m]:
+        process_game.game_reset()
+        player_car_1.reset()
+        player_car_2.reset()
+    car1_moved = False
+    if storing_keys[pygame.K_a]:
+        player_car_1.rotating_car(move_left=True)
+    if storing_keys[pygame.K_d]:
+        player_car_1.rotating_car(move_right=True)
+    if storing_keys[pygame.K_w]:
+        car1_moved = True
+        player_car_1.forward_moving()
+    if storing_keys[pygame.K_s]:
+        car1_moved = True
+        player_car_1.backward_moving()
+    if not car1_moved:
+        player_car_1.speed_reduction()
+    car2_moved = False
+    if storing_keys[pygame.K_LEFT]:
+        player_car_2.rotating_car(move_left=True)
+    if storing_keys[pygame.K_RIGHT]:
+        player_car_2.rotating_car(move_right=True)
+    if storing_keys[pygame.K_UP]:
+        car2_moved = True
+        player_car_2.forward_moving()
+    if storing_keys[pygame.K_DOWN]:
+        car2_moved = True
+        player_car_2.backward_moving()
+    if not car2_moved:
+        player_car_2.speed_reduction()
+
+def cars_collision(player_car_1, player_car_2, process_game):
+    car_1_finish = player_car_1.collide(finish_line_1_mask, *finish_1_pos)
+    if car_1_finish != None:
+        process_game.add_point("Player 1")
+        process_game.lev_change()
+        player_car_1.reset()
+        player_car_2.reset()
+    car_2_finish = player_car_2.collide(finish_line_1_mask, *finish_1_pos)
+    if car_2_finish != None:
+        process_game.add_point("Player 2")
+        process_game.lev_change()
+        player_car_1.reset()
+        player_car_2.reset()
+    if player_car_1.collide(path_border_mask) != None:
+        player_car_1.bounce_back()
+    if player_car_2.collide(path_border_mask) != None:
+        player_car_2.bounce_back()
+
+def draw_trophy(win, trophy, text_y_position):
+    trophy_x = win.get_width() / 2 - trophy.get_width() / 2
+    trophy_y = text_y_position + 50
+    win.blit(trophy, (trophy_x, trophy_y))
+    pygame.display.update()
+
+class process:
+    Tot_Levels = 3
+    def __init__(self, level=1):
+        self.level = level
+        self.game_start = False
+        self.scores = {"Player 1": 0, "Player 2": 0}
+
+    def lev_change(self):
+        self.level += 1
+        self.game_start = False
+
+    def game_reset(self):
+        self.level = 1
+        self.game_start = False
+        self.scores = {"Player 1": 0, "Player 2": 0}
+
+    def game_finish(self):
+        return self.level > self.Tot_Levels
+
+    def starting_level(self):
+        self.game_start = True
+
+    def add_point(self, player):
+        self.scores[player] += 1
+
+    def get_winner(self):
+        if self.scores["Player 1"] > self.scores["Player 2"]:
+            return (f"Player 1 (Red) Wins! \n Player 1 score ={self.scores['Player 1']}\n "
+                    f"Player 2 score ={self.scores['Player 2']}")
+        if self.scores["Player 1"] < self.scores["Player 2"]:
+            return (f"Player 2 (Yellow) Wins! \n Player 1 score ={self.scores['Player 1']}\n "
+                    f"Player 2 score ={self.scores['Player 2']}")
+
+
+player_car_1 = Car1(2, 2)
+player_car_2 = Car2(2, 2)
+
