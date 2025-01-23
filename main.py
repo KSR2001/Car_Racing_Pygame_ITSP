@@ -51,6 +51,7 @@ def draw_instructions(win, font, instructions_text, background_color=(0, 0, 0, 1
         win.blit(render, (win.get_width() / 2 - render.get_width() / 2, start_y))
         start_y += render.get_height()
 
+
 def rotating_img(pywin, img, pos, angle):
     pywin.blit(
         pygame.transform.rotate(img, angle),
@@ -62,7 +63,7 @@ def rotating_img(pywin, img, pos, angle):
 
 class Main_Car:
     IMG = None
-    start_position = (0,0)
+    start_position = (0, 0)
 
     def __init__(self, car_speed, car_rotation_speed):
         self.car_rotation_speed = car_rotation_speed
@@ -72,6 +73,11 @@ class Main_Car:
         self.hor, self.ver = self.start_position
         self.car_speed = car_speed
         self.speed = 0
+
+    def set_position_and_angle(self, hor, ver, angle):
+        self.hor = hor
+        self.ver = ver
+        self.angle = angle
 
     def draw(self, win):
         rotating_img(win, self.img, (self.hor, self.ver), self.angle)
@@ -132,7 +138,6 @@ def draw(win, game_images, player_car_1, player_car_2, process_game):
     player_car_1.draw(win)
     player_car_2.draw(win)
     pygame.display.update()
-
 
 def moving_cars(player_car_1, player_car_2):
     storing_keys = pygame.key.get_pressed()
@@ -230,7 +235,6 @@ class process:
             return (f"Player 2 (Yellow) Wins! \n Player 1 score ={self.scores['Player 1']}\n "
                     f"Player 2 score ={self.scores['Player 2']}")
 
-
 player_car_1 = Car1(2, 2)
 player_car_2 = Car2(2, 2)
 game_images = [(Dirt, (0, 0)), (PATH, (0, 0)),
@@ -238,11 +242,47 @@ game_images = [(Dirt, (0, 0)), (PATH, (0, 0)),
           (plant2, (5, 210)), (plant3, (250,180)), (plant4, (400,90)), (cat, (1, 3))]
 process_game = process()
 Myclock = pygame.time.Clock()
+replay_data = []
+def record_replay(replay_data, player_car_1, player_car_2, process_game):
+    frame_data = {
+        "car1": {
+            "hor": player_car_1.hor,
+            "ver": player_car_1.ver,
+            "angle": player_car_1.angle,
+        },
+        "car2": {
+            "hor": player_car_2.hor,
+            "ver": player_car_2.ver,
+            "angle": player_car_2.angle,
+        },
+        "level": process_game.level,
+    }
+    replay_data.append(frame_data)
+
+def play_replay(win, game_images, replay_data, replay_speed=5):
+    player_car_1 = Car1(2, 2)
+    player_car_2 = Car2(2, 2)
+    for frame in replay_data:
+        player_car_1.set_position_and_angle(frame["car1"]["hor"], frame["car1"]["ver"], frame["car1"]["angle"])
+        player_car_2.set_position_and_angle(frame["car2"]["hor"], frame["car2"]["ver"], frame["car2"]["angle"])
+        current_level = frame["level"]
+        level_text = SMALL_FONT.render(f"Level {current_level}", 1, (255, 255, 255))
+        draw(win, game_images, player_car_1, player_car_2, process_game)
+        win.blit(level_text, (30, HEIGHT - level_text.get_height() - 70))
+        pygame.display.update()
+        pygame.time.wait(int(1000 / (Frames * replay_speed)))
+
+def draw_replay_prompt(win, font):
+    instructions_text = "Do you want to watch a replay of the last level?\nPress Y for Yes or N for No."
+    draw_instructions(win, font, instructions_text)
+
+
 Frames = 60
 running_game = True
 while running_game:
     Myclock.tick(Frames)
     draw(WIN, game_images, player_car_1, player_car_2, process_game)
+
     while not process_game.game_start:
         instructions_text = (
             f"Press any key to start level {process_game.level}!\n"
@@ -263,12 +303,18 @@ while running_game:
                 break
             if event.type == pygame.KEYDOWN:
                 process_game.starting_level()
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running_game = False
             break
+
+    if process_game.level == process_game.Tot_Levels:
+        record_replay(replay_data, player_car_1, player_car_2, process_game)
+
     moving_cars(player_car_1, player_car_2)
     cars_collision(player_car_1, player_car_2, process_game)
+
     if process_game.game_finish():
         winner_text = process_game.get_winner()
         draw_instructions(WIN, SMALL_FONT, winner_text)
@@ -276,7 +322,26 @@ while running_game:
         draw_trophy(WIN, trophy, HEIGHT / 2 - winner_text_height / 2)
         pygame.display.update()
         pygame.time.wait(5000)
+
+        replay_decision = None
+        while replay_decision is None:
+            draw_replay_prompt(WIN, SMALL_FONT)
+            pygame.display.update()
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_y:
+                        replay_decision = True
+                    elif event.key == pygame.K_n:
+                        replay_decision = False
+        if replay_decision:
+            play_replay(WIN, game_images, replay_data)
+
         process_game.game_reset()
         player_car_1.reset()
         player_car_2.reset()
+        replay_data.clear()
+
 pygame.quit()
+
+
+
