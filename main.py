@@ -233,4 +233,34 @@ class process:
 
 player_car_1 = Car1(2, 2)
 player_car_2 = Car2(2, 2)
+game_images = [(Dirt, (0, 0)), (PATH, (0, 0)),
+          (finish_line_1, finish_1_pos), (finish_line_2, (20,420)), (path_border, (0, 0)), (plant1, (100, 380)),
+          (plant2, (5, 210)), (plant3, (250,180)), (plant4, (400,90)), (cat, (1, 3))]
+process_game = process()
+Myclock = pygame.time.Clock()
+Frames = 60
+running_game = True
+while running_game:
+    Myclock.tick(Frames)
+    draw(WIN, game_images, player_car_1, player_car_2, process_game)
+    while not process_game.game_start:
+        instructions_text = (
+            f"Press any key to start level {process_game.level}!\n"
+            f"{'Instructions:'.center(40)}\n"
+            f"Player 1 (Red Car) must use W/A/S/D to move\n"
+            f"Player 2 (Yellow Car) must use Arrow Keys to move\n"
+            f" Use Q to play 'GAME SOUND' and E to stop playing it\n"
+            f" Use N to 'QUIT' the game and M to 'RESET' it\n"
+            f"There are 3 levels in the game\n"
+            f"The player who wins the most levels is the WINNER!\n"
+            f"HINT: MAKE GOOD TURNS! "
+        )
+        draw_instructions(WIN, SMALL_FONT, instructions_text)
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                break
+            if event.type == pygame.KEYDOWN:
+                process_game.starting_level()
 
